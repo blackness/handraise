@@ -5,6 +5,7 @@ import { RequireAuth } from './components/RequireAuth'
 // Auth pages
 import { LoginPage } from './pages/LoginPage'
 import { StudentLoginPage } from './pages/StudentLoginPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 // Platform owner
 import { PlatformDashboard } from './pages/platform/Dashboard'
@@ -15,6 +16,7 @@ import { AdminDashboard } from './pages/admin/Dashboard'
 import { AdminStudents } from './pages/admin/Students'
 import { AdminPrograms } from './pages/admin/Programs'
 import { AdminSession } from './pages/admin/Session'
+import { AdminProfile } from './pages/admin/Profile'
 
 // Teacher
 import { TeacherDashboard } from './pages/teacher/Dashboard'
@@ -39,12 +41,13 @@ function RoleRedirect() {
 
 export default function App() {
   return (
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter>
       <Routes>
 
         {/* ── Public ──────────────────────────────────────── */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/join"  element={<StudentLoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Presenter screen — no auth, designed for projector */}
         <Route path="/presenter/:sessionId" element={<PresenterScreen />} />
@@ -83,6 +86,11 @@ export default function App() {
         <Route path="/admin/session/:sessionId" element={
           <RequireAuth allowedRoles={['admin']}>
             <AdminSession />
+          </RequireAuth>
+        } />
+        <Route path="/admin/profile" element={
+          <RequireAuth allowedRoles={['admin']}>
+            <AdminProfile />
           </RequireAuth>
         } />
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -39,6 +39,7 @@ export function PresenterScreen() {
   const [attendance, setAttendance]       = useState([])
   const [loading, setLoading]             = useState(true)
   const [clock, setClock]                 = useState(new Date())
+  const activePollRef                     = useRef(null)
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 1000)
@@ -53,11 +54,11 @@ export function PresenterScreen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'polls',
         filter: `session_id=eq.${sessionId}` }, loadActivePoll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_responses',
-        filter: `session_id=eq.${sessionId}` }, () => loadPollResponses())
+        filter: `session_id=eq.${sessionId}` }, (payload) => loadPollResponses(payload.new?.poll_id, false))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'confidence_checks',
         filter: `session_id=eq.${sessionId}` }, loadActivePoll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'confidence_responses',
-        filter: `session_id=eq.${sessionId}` }, () => loadPollResponses())
+        filter: `session_id=eq.${sessionId}` }, (payload) => loadPollResponses(payload.new?.check_id, true))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance',
         filter: `session_id=eq.${sessionId}` }, loadAttendance)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions',
@@ -99,33 +100,38 @@ export function PresenterScreen() {
     } else if (ccOpen) {
       active = { ...cc, type: 'confidence' }
     } else {
-      // Show most recent closed one for review
       const candidates = [poll, cc ? { ...cc, type: 'confidence' } : null].filter(Boolean)
       candidates.sort((a, b) => new Date(b.launched_at) - new Date(a.launched_at))
       active = candidates[0] || null
     }
 
+    activePollRef.current = active
     setActivePoll(active)
-    if (active) loadPollResponses(active)
+    if (active) loadPollResponses(active.id, active.type === 'confidence')
   }, [sessionId])
 
-  const loadPollResponses = useCallback(async (poll) => {
-    const p = poll || activePoll
-    if (!p) return
-    const isConf = p.type === 'confidence'
+  const loadPollResponses = useCallback(async (pollId, isConf) => {
+    const id   = pollId || activePollRef.current?.id
+    const conf = isConf ?? activePollRef.current?.type === 'confidence'
+    if (!id) return
+
+    const table    = conf ? 'confidence_responses' : 'poll_responses'
+    const fkField  = conf ? 'check_id' : 'poll_id'
+    const valField = conf ? 'score' : 'response'
+
     const { data } = await supabase
-      .from(isConf ? 'confidence_responses' : 'poll_responses')
-      .select(isConf ? 'score' : 'response')
-      .eq(isConf ? 'check_id' : 'poll_id', p.id)
-    setPollResponses((data || []).map(r => ({ response: String(isConf ? r.score : r.response) })))
-  }, [activePoll])
+      .from(table)
+      .select(valField)
+      .eq(fkField, id)
+    setPollResponses((data || []).map(r => ({ response: String(r[valField]) })))
+  }, [])
 
   const loadAttendance = useCallback(async () => {
     const { data } = await supabase.from('attendance').select('id').eq('session_id', sessionId)
     setAttendance(data || [])
   }, [sessionId])
 
-  useEffect(() => { if (activePoll) loadPollResponses() }, [activePoll?.id])
+  useEffect(() => { if (activePoll?.id) loadPollResponses(activePoll.id, activePoll.type === 'confidence') }, [activePoll?.id])
 
   if (loading) return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center">

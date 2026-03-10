@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -33,6 +33,7 @@ export function AdminSession() {
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState('hands') // 'hands' | 'attendance'
   const [ending, setEnding]         = useState(false)
+  const activePollRef               = useRef(null)
 
   // ── Initial load ─────────────────────────────────────
   useEffect(() => { loadSession() }, [sessionId])
@@ -49,7 +50,7 @@ export function AdminSession() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'polls',
         filter: `session_id=eq.${sessionId}` }, loadActivePoll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_responses',
-        filter: `session_id=eq.${sessionId}` }, loadPollResponses)
+        filter: `session_id=eq.${sessionId}` }, (payload) => loadPollResponses(payload.new?.poll_id))
       .subscribe()
 
     return () => supabase.removeChannel(channel)
@@ -108,21 +109,23 @@ export function AdminSession() {
       .order('launched_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    activePollRef.current = data || null
     setActivePoll(data || null)
-    if (data) loadPollResponses()
+    if (data) loadPollResponses(data.id)
   }, [sessionId])
 
-  const loadPollResponses = useCallback(async () => {
-    if (!activePoll?.id) return
+  const loadPollResponses = useCallback(async (pollId) => {
+    const id = pollId || activePollRef.current?.id
+    if (!id) return
     const { data } = await supabase
       .from('poll_responses')
       .select('response')
-      .eq('poll_id', activePoll.id)
+      .eq('poll_id', id)
     setPollResponses(data || [])
-  }, [activePoll?.id])
+  }, [])
 
   // Reload poll responses when activePoll changes
-  useEffect(() => { if (activePoll) loadPollResponses() }, [activePoll?.id])
+  useEffect(() => { if (activePoll?.id) loadPollResponses(activePoll.id) }, [activePoll?.id])
 
   // ── Hand actions ─────────────────────────────────────
   async function callOn(hand) {

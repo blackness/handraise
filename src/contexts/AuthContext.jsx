@@ -25,7 +25,12 @@ export function AuthProvider({ children }) {
     })
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // Redirect to reset page instead of logging in
+        window.location.href = '/reset-password'
+        return
+      }
       if (session?.user) {
         loadUserRole(session.user)
         setStudent(null)
