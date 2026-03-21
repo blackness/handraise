@@ -129,7 +129,7 @@ export function AuthProvider({ children }) {
     setRole('student')
     setUser(null)
 
-    return { error: null }
+    return { error: null, data: studentSession }
   }
 
   async function signOut() {

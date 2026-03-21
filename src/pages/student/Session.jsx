@@ -15,7 +15,8 @@ export function StudentSession() {
   const [responded, setResponded]   = useState(false)
   const [queuePos, setQueuePos]     = useState(null)
   const [loading, setLoading]       = useState(true)
-  const [calledOn, setCalledOn]     = useState(false)  // flash when called on
+  const [calledOn, setCalledOn]     = useState(false)
+  const [availableSessions, setAvailableSessions] = useState([])  // flash when called on
 
   const profile = student?.profile
 
@@ -23,7 +24,6 @@ export function StudentSession() {
   useEffect(() => { findSession() }, [])
 
   async function findSession() {
-    // Find programs this student is enrolled in
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select('program_id')
@@ -33,19 +33,24 @@ export function StudentSession() {
 
     const programIds = enrollments.map(e => e.program_id)
 
-    // Find active session for any of those programs
     const { data: sessions } = await supabase
       .from('sessions')
-      .select('id, program_id, status, programs(name)')
+      .select('id, program_id, name, status, programs(name)')
       .in('program_id', programIds)
       .eq('status', 'active')
-      .limit(1)
 
     if (!sessions?.length) {
       setWaiting(true)
       setLoading(false)
-      // Subscribe to session start
       subscribeToSessionStart(programIds)
+      return
+    }
+
+    // If multiple sessions, show picker
+    if (sessions.length > 1) {
+      setAvailableSessions(sessions)
+      setWaiting(false)
+      setLoading(false)
       return
     }
 
@@ -55,6 +60,21 @@ export function StudentSession() {
 
   function subscribeToSessionStart(programIds) {
     const channel = supabase.channel('waiting-for-session')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sessions' },
+        async (payload) => {
+          if (payload.new.status === 'active' && programIds.includes(payload.new.program_id)) {
+            const { data } = await supabase
+              .from('sessions')
+              .select('id, program_id, status, programs(name)')
+              .eq('id', payload.new.id)
+              .single()
+            if (data) {
+              setWaiting(false)
+              await enterSession(data)
+              supabase.removeChannel(channel)
+            }
+          }
+        })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions' },
         async (payload) => {
           if (payload.new.status === 'active' && programIds.includes(payload.new.program_id)) {
@@ -224,6 +244,35 @@ export function StudentSession() {
   )
 
   // ── Waiting for session ───────────────────────────────
+  // ── Session picker (multiple active sessions) ─────────
+  if (availableSessions.length > 1) return (
+    <div className="min-h-screen bg-brand-500 flex flex-col items-center justify-center p-6">
+      <span className="text-5xl mb-6">✋</span>
+      <h1 className="text-2xl font-bold text-white mb-2">Choose your session</h1>
+      <p className="text-brand-200 mb-8 text-sm">Multiple sessions are running. Pick yours.</p>
+      <div className="w-full max-w-sm space-y-3">
+        {availableSessions.map(sess => (
+          <button
+            key={sess.id}
+            onClick={async () => {
+              setAvailableSessions([])
+              setLoading(true)
+              await enterSession(sess)
+              setLoading(false)
+            }}
+            className="w-full bg-white rounded-2xl px-6 py-4 text-left hover:bg-brand-50 transition-colors"
+          >
+            <p className="font-bold text-gray-900">{sess.name || sess.programs?.name}</p>
+            {sess.name && <p className="text-sm text-gray-400 mt-0.5">{sess.programs?.name}</p>}
+          </button>
+        ))}
+      </div>
+      <button onClick={handleSignOut} className="text-brand-300 text-xs hover:text-white mt-8 transition-colors">
+        Sign out
+      </button>
+    </div>
+  )
+
   if (waiting) return (
     <div className="min-h-screen bg-brand-500 flex flex-col items-center justify-center p-6 text-center">
       <span className="text-6xl mb-6">⏳</span>

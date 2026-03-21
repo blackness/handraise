@@ -28,6 +28,7 @@ import { StudentProfile } from './pages/student/Profile'
 
 // Presenter screen (no auth required - display only)
 import { PresenterScreen } from './pages/PresenterScreen'
+import { ViewerScreen } from './pages/ViewerScreen'
 
 function RoleRedirect() {
   const { role, loading } = useAuth()
@@ -51,6 +52,7 @@ export default function App() {
 
         {/* Presenter screen — no auth, designed for projector */}
         <Route path="/presenter/:sessionId" element={<PresenterScreen />} />
+        <Route path="/viewer/:sessionId"    element={<ViewerScreen />} />
 
         {/* ── Role redirect from root ──────────────────────── */}
         <Route path="/" element={<RoleRedirect />} />

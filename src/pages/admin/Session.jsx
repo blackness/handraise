@@ -133,6 +133,21 @@ export function AdminSession() {
       called_on_at: new Date().toISOString(),
       lowered_at:   new Date().toISOString(),
     }).eq('id', hand.id)
+
+    // Push student profile to viewer screen
+    const studentId = hand.student_profiles?.id
+    if (studentId) {
+      const { data: existing } = await supabase
+        .from('session_focus').select('id').eq('session_id', sessionId).maybeSingle()
+      if (existing) {
+        await supabase.from('session_focus')
+          .update({ view: 'profile', student_id: studentId, updated_at: new Date().toISOString() })
+          .eq('session_id', sessionId)
+      } else {
+        await supabase.from('session_focus')
+          .insert({ session_id: sessionId, view: 'profile', student_id: studentId })
+      }
+    }
   }
 
   async function lowerHand(hand) {
@@ -195,6 +210,7 @@ export function AdminSession() {
   )
 
   const presenterUrl = `${window.location.origin}/presenter/${sessionId}`
+  const viewerUrl    = `${window.location.origin}/viewer/${sessionId}`
 
   return (
     <AdminLayout>
@@ -214,13 +230,11 @@ export function AdminSession() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href={presenterUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-secondary text-sm py-2"
-            >
-              📺 Presenter screen ↗
+            <a href={presenterUrl} target="_blank" rel="noreferrer" className="btn-secondary text-sm py-2">
+              📺 Presenter ↗
+            </a>
+            <a href={viewerUrl} target="_blank" rel="noreferrer" className="btn-secondary text-sm py-2">
+              👥 Viewer ↗
             </a>
             <button
               onClick={endSession}
