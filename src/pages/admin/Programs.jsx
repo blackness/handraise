@@ -37,13 +37,14 @@ export function AdminPrograms() {
   async function handleCreate(e) {
     e.preventDefault(); setError(''); setSaving(true)
     const { data: { user: authUser } } = await supabase.auth.getUser()
-    const { data: ap } = await supabase.from('admin_profiles').select('institution_id').eq('user_id', authUser.id).single()
+    const { data: ap, error: apErr } = await supabase.from('admin_profiles').select('institution_id').eq('user_id', authUser.id).single()
+    if (apErr) console.error('admin_profiles error:', apErr)
     const instId = ap?.institution_id || institutionId
     if (!instId) { setError('Could not determine institution. Please refresh.'); setSaving(false); return }
     const { error } = await supabase.from('programs').insert({
       institution_id: instId, name: form.name.trim(), teacher_id: form.teacher_id || null,
     })
-    if (error) { setError(error.message); setSaving(false); return }
+    if (error) { console.error('insert error:', error); setError(error.message); setSaving(false); return }
     setForm({ name: '', teacher_id: '' }); setShowForm(false); setSaving(false); loadData()
   }
 
@@ -62,7 +63,7 @@ export function AdminPrograms() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Programs</h1>
-          {pageTab === 'programs' && (
+          {pageTab === 'programs' && !showForm && (
             <button onClick={() => setShowForm(true)} className="btn-primary">+ New Program</button>
           )}
         </div>
@@ -119,7 +120,7 @@ export function AdminPrograms() {
               <div className="card border-dashed text-center py-12">
                 <p className="text-4xl mb-3">📚</p>
                 <p className="text-gray-500 font-medium">No programs yet</p>
-                <button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ New Program</button>
+                <p className="text-gray-400 text-sm mt-1">Use the button above to create your first program</p>
               </div>
             ) : (
               <div className="space-y-3">
