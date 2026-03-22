@@ -10,7 +10,8 @@ export function StudentProfile() {
   const navigate = useNavigate()
   const profile = student?.profile
 
-  const [form, setForm]             = useState({ full_name: '', company: '', work_position: '' })
+  const [form, setForm]             = useState({ full_name: '', company: '', work_position: '', location: '' })
+  const [locations, setLocations]   = useState([])
   const [currentPin, setCurrentPin] = useState('')
   const [newPin, setNewPin]         = useState('')
   const [confirmPin, setConfirmPin] = useState('')
@@ -35,7 +36,15 @@ export function StudentProfile() {
         full_name:     profile.full_name || '',
         company:       profile.company || '',
         work_position: profile.work_position || '',
+        location:      profile.location || '',
       })
+
+      // Load institution locations
+      if (profile.institution_id) {
+        supabase.from('locations').select('id, name')
+          .eq('institution_id', profile.institution_id).order('name')
+          .then(({ data }) => setLocations(data || []))
+      }
     }
   }, [profile])
 
@@ -54,6 +63,7 @@ export function StudentProfile() {
         full_name:     form.full_name.trim(),
         company:       form.company.trim() || null,
         work_position: form.work_position.trim() || null,
+        location:      form.location || null,
       })
       .eq('id', profile.id)
 
@@ -252,6 +262,17 @@ export function StudentProfile() {
               <input className="input" placeholder="Optional" value={form.work_position}
                 onChange={e => set('work_position', e.target.value)} />
             </div>
+            {locations.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <select className="input bg-white" value={form.location} onChange={e => set('location', e.target.value)}>
+                  <option value="">Select location…</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.name}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             {msg   && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2">{msg}</p>}

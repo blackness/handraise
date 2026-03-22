@@ -22,7 +22,7 @@ export function AdminStudents() {
     setInstitutionId(ap.institution_id)
     const { data } = await supabase
       .from('student_profiles')
-      .select('id, student_id, full_name, company, work_position, team, profile_photo_url, active, created_at')
+      .select('id, student_id, full_name, company, work_position, team, location, profile_photo_url, active, created_at, enrollments(programs(id, name))')
       .eq('institution_id', ap.institution_id)
       .order('full_name')
     setStudents(data || [])
@@ -60,6 +60,14 @@ export function AdminStudents() {
           </div>
         </div>
 
+        {view === 'edit' && selected && (
+          <EditStudentForm
+            student={selected}
+            institutionId={institutionId}
+            onDone={() => { setView('list'); setSelected(null); loadData() }}
+            onCancel={() => { setView('list'); setSelected(null) }}
+          />
+        )}
         {view === 'add' && (
           <AddStudentForm institutionId={institutionId}
             onDone={() => { setView('list'); loadData() }} onCancel={() => setView('list')} />
@@ -94,6 +102,7 @@ export function AdminStudents() {
             ) : (
               <>
                 <StudentTable students={active} onToggle={toggleActive}
+                  onEdit={s => { setSelected(s); setView('edit') }}
                   onReset={s => { setSelected(s); setView('reset') }} />
                 {inactive.length > 0 && (
                   <div className="mt-8">
@@ -101,6 +110,7 @@ export function AdminStudents() {
                       Inactive ({inactive.length})
                     </h2>
                     <StudentTable students={inactive} onToggle={toggleActive}
+                      onEdit={s => { setSelected(s); setView('edit') }}
                       onReset={s => { setSelected(s); setView('reset') }} dimmed />
                   </div>
                 )}
@@ -116,7 +126,7 @@ export function AdminStudents() {
   )
 }
 
-function StudentTable({ students, onToggle, onReset, dimmed }) {
+function StudentTable({ students, onToggle, onReset, onEdit, dimmed }) {
   if (students.length === 0) return null
   return (
     <div className="card p-0 overflow-hidden">
@@ -125,37 +135,137 @@ function StudentTable({ students, onToggle, onReset, dimmed }) {
           <tr className="border-b border-gray-100">
             <th className="text-left px-5 py-3 text-gray-500 font-medium">Student</th>
             <th className="text-left px-5 py-3 text-gray-500 font-medium">ID</th>
-            <th className="text-left px-5 py-3 text-gray-500 font-medium hidden md:table-cell">Team</th>
-            <th className="text-left px-5 py-3 text-gray-500 font-medium hidden md:table-cell">Company / Role</th>
+            <th className="text-left px-5 py-3 text-gray-500 font-medium hidden md:table-cell">Programs</th>
+            <th className="text-left px-5 py-3 text-gray-500 font-medium hidden lg:table-cell">Team / Location</th>
             <th className="px-5 py-3" />
           </tr>
         </thead>
         <tbody>
-          {students.map((s, i) => (
-            <tr key={s.id} className={`border-b border-gray-50 ${dimmed ? 'opacity-50' : ''} ${i === students.length - 1 ? 'border-0' : ''}`}>
-              <td className="px-5 py-3">
-                <div className="flex items-center gap-3">
-                  <Avatar student={s} size={8} />
-                  <span className="font-medium text-gray-900">{s.full_name}</span>
-                </div>
-              </td>
-              <td className="px-5 py-3 text-gray-500 font-mono text-xs">{s.student_id}</td>
-              <td className="px-5 py-3 text-gray-400 hidden md:table-cell">{s.team || '—'}</td>
-              <td className="px-5 py-3 text-gray-400 hidden md:table-cell">
-                {[s.work_position, s.company].filter(Boolean).join(' · ') || '—'}
-              </td>
-              <td className="px-5 py-3">
-                <div className="flex items-center gap-3 justify-end">
-                  <button onClick={() => onReset(s)} className="text-xs text-brand-500 hover:underline">Reset PIN</button>
-                  <button onClick={() => onToggle(s)} className="text-xs text-gray-400 hover:text-gray-600">
-                    {s.active ? 'Deactivate' : 'Activate'}
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {students.map((s, i) => {
+            const programs = s.enrollments?.map(e => e.programs?.name).filter(Boolean) || []
+            return (
+              <tr key={s.id} className={`border-b border-gray-50 ${dimmed ? 'opacity-50' : ''} ${i === students.length - 1 ? 'border-0' : ''}`}>
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar student={s} size={8} />
+                    <button onClick={() => onEdit(s)} className="font-medium text-brand-600 hover:underline text-left">
+                      {s.full_name}
+                    </button>
+                  </div>
+                </td>
+                <td className="px-5 py-3 text-gray-500 font-mono text-xs">{s.student_id}</td>
+                <td className="px-5 py-3 hidden md:table-cell">
+                  {programs.length > 0
+                    ? <div className="flex flex-wrap gap-1">
+                        {programs.map(p => (
+                          <span key={p} className="bg-brand-50 text-brand-600 text-xs px-2 py-0.5 rounded-full">{p}</span>
+                        ))}
+                      </div>
+                    : <span className="text-gray-300 text-xs">Not enrolled</span>
+                  }
+                </td>
+                <td className="px-5 py-3 text-gray-400 hidden lg:table-cell">
+                  {[s.team, s.location].filter(Boolean).join(' · ') || '—'}
+                </td>
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3 justify-end">
+                    <button onClick={() => onReset(s)} className="text-xs text-brand-500 hover:underline">Reset PIN</button>
+                    <button onClick={() => onToggle(s)} className="text-xs text-gray-400 hover:text-gray-600">
+                      {s.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function EditStudentForm({ student, institutionId, onDone, onCancel }) {
+  const [form, setForm] = useState({
+    full_name:     student.full_name || '',
+    student_id:    student.student_id || '',
+    company:       student.company || '',
+    work_position: student.work_position || '',
+    team:          student.team || '',
+    location:      student.location || '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [locations, setLocations] = useState([])
+
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
+
+  useEffect(() => {
+    if (!institutionId) return
+    supabase.from('locations').select('id, name').eq('institution_id', institutionId).order('name')
+      .then(({ data }) => setLocations(data || []))
+  }, [institutionId])
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError(''); setSaving(true)
+    const { error } = await supabase.from('student_profiles').update({
+      full_name:     form.full_name.trim(),
+      student_id:    form.student_id.trim(),
+      company:       form.company.trim() || null,
+      work_position: form.work_position.trim() || null,
+      team:          form.team.trim() || null,
+      location:      form.location || null,
+    }).eq('id', student.id)
+    if (error) { setError(error.message); setSaving(false); return }
+    onDone()
+  }
+
+  return (
+    <div className="card mb-6 border-brand-200 border-2">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-semibold text-gray-900">Edit Profile</h2>
+        <span className="text-sm text-gray-400">{student.full_name}</span>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input className="input" value={form.full_name} onChange={e => set('full_name', e.target.value)} required autoFocus />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
+            <input className="input" value={form.student_id} onChange={e => set('student_id', e.target.value)} required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Team <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input className="input" placeholder="Team Alpha" value={form.team} onChange={e => set('team', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Location <span className="text-gray-400 font-normal">(optional)</span></label>
+            {locations.length > 0 ? (
+              <select className="input bg-white" value={form.location} onChange={e => set('location', e.target.value)}>
+                <option value="">No location</option>
+                {locations.map(loc => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
+              </select>
+            ) : (
+              <input className="input" placeholder="Toronto" value={form.location} onChange={e => set('location', e.target.value)} />
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input className="input" placeholder="Acme Corp" value={form.company} onChange={e => set('company', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Work Position <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input className="input" placeholder="Senior Manager" value={form.work_position} onChange={e => set('work_position', e.target.value)} />
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+        <div className="flex gap-2 pt-1">
+          <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving…' : 'Save Changes'}</button>
+          <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+        </div>
+      </form>
     </div>
   )
 }
@@ -172,7 +282,7 @@ function Avatar({ student, size = 8 }) {
 }
 
 function AddStudentForm({ institutionId, onDone, onCancel }) {
-  const [form, setForm] = useState({ student_id: '', full_name: '', pin: '', company: '', work_position: '', team: '' })
+  const [form, setForm] = useState({ student_id: '', full_name: '', pin: '', company: '', work_position: '', team: '', location: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   function set(k, v) { setForm(f => ({ ...f, [k]: v })) }
@@ -191,6 +301,8 @@ function AddStudentForm({ institutionId, onDone, onCancel }) {
       pin_hash:       hashed,
       company:        form.company.trim() || null,
       work_position:  form.work_position.trim() || null,
+      team:           form.team.trim() || null,
+      location:       form.location.trim() || null,
       team:           form.team.trim() || null,
     })
     if (insertErr) {
@@ -235,6 +347,11 @@ function AddStudentForm({ institutionId, onDone, onCancel }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Work Position <span className="text-gray-400 font-normal">(optional)</span></label>
             <input className="input" placeholder="Senior Manager" value={form.work_position}
               onChange={e => set('work_position', e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Location <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input className="input" placeholder="Toronto" value={form.location}
+              onChange={e => set('location', e.target.value)} />
           </div>
         </div>
         {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
@@ -290,6 +407,15 @@ function CSVImport({ institutionId, onDone, onCancel }) {
   const [importing, setImporting] = useState(false)
   const [results, setResults] = useState(null)
   const [parseError, setParseError] = useState('')
+  const [programs, setPrograms] = useState([])
+  const [selectedProgramId, setSelectedProgramId] = useState('')
+
+  useEffect(() => {
+    if (!institutionId) return
+    supabase.from('programs').select('id, name').eq('institution_id', institutionId)
+      .eq('archived', false).order('name')
+      .then(({ data }) => setPrograms(data || []))
+  }, [institutionId])
 
   function handleFile(e) {
     const file = e.target.files[0]
@@ -313,6 +439,7 @@ function CSVImport({ institutionId, onDone, onCancel }) {
             student_id: row.student_id?.trim(), full_name: row.full_name?.trim(),
             pin: row.pin?.trim(), company: row.company?.trim() || null,
             work_position: row.work_position?.trim() || null, team: row.team?.trim() || null,
+            location: row.location?.trim() || null,
           }
         })
         setRows(validated)
@@ -323,18 +450,45 @@ function CSVImport({ institutionId, onDone, onCancel }) {
   async function handleImport() {
     setImporting(true)
     const ready = rows.filter(r => r._status === 'ready')
-    let imported = 0, skipped = 0, errors = []
+    let imported = 0, skipped = 0, enrolled = 0, errors = []
+
     for (const row of ready) {
       const { data: hashed, error: hashErr } = await supabase.rpc('hash_pin', { p_pin: row.pin })
       if (hashErr) { errors.push(`${row.student_id}: ${hashErr.message}`); continue }
-      const { error } = await supabase.from('student_profiles').insert({
+
+      const { data: inserted, error } = await supabase.from('student_profiles').insert({
         institution_id: institutionId, student_id: row.student_id, full_name: row.full_name,
-        pin_hash: hashed, company: row.company, work_position: row.work_position, team: row.team,
-      })
-      if (error) { error.code === '23505' ? skipped++ : errors.push(`${row.student_id}: ${error.message}`) }
-      else imported++
+        pin_hash: hashed, company: row.company, work_position: row.work_position,
+        team: row.team, location: row.location,
+      }).select('id').single()
+
+      if (error) {
+        if (error.code === '23505') {
+          skipped++
+          // Still enroll existing student if program selected
+          if (selectedProgramId) {
+            const { data: existing } = await supabase.from('student_profiles')
+              .select('id').eq('institution_id', institutionId).eq('student_id', row.student_id).single()
+            if (existing) {
+              const { error: enrollErr } = await supabase.from('enrollments')
+                .insert({ program_id: selectedProgramId, student_id: existing.id })
+              if (!enrollErr) enrolled++
+            }
+          }
+        } else {
+          errors.push(`${row.student_id}: ${error.message}`)
+        }
+      } else {
+        imported++
+        if (selectedProgramId && inserted) {
+          const { error: enrollErr } = await supabase.from('enrollments')
+            .insert({ program_id: selectedProgramId, student_id: inserted.id })
+          if (!enrollErr) enrolled++
+        }
+      }
     }
-    setResults({ imported, skipped, errors })
+
+    setResults({ imported, skipped, enrolled, errors, programName: programs.find(p => p.id === selectedProgramId)?.name })
     setImporting(false)
   }
 
@@ -349,14 +503,29 @@ function CSVImport({ institutionId, onDone, onCancel }) {
         <code className="bg-gray-100 px-1 rounded">full_name</code>{' '}
         <code className="bg-gray-100 px-1 rounded">pin</code>
         {' '}· Optional: <code className="bg-gray-100 px-1 rounded">team</code>{' '}
+        <code className="bg-gray-100 px-1 rounded">location</code>{' '}
         <code className="bg-gray-100 px-1 rounded">company</code>{' '}
         <code className="bg-gray-100 px-1 rounded">work_position</code>
       </p>
-      <a href="data:text/csv;charset=utf-8,student_id,full_name,pin,team,company,work_position%0ASTU001,Jane Smith,1234,Team Alpha,Acme Corp,Senior Manager"
+      <a href="data:text/csv;charset=utf-8,student_id,full_name,pin,team,location,company,work_position%0ASTU001,Jane Smith,1234,Team Alpha,Toronto,Acme Corp,Senior Manager"
         download="handraise_students_template.csv"
         className="inline-block text-sm text-brand-500 hover:underline mb-4">
         ↓ Download template CSV
       </a>
+
+      {/* Program selector */}
+      {programs.length > 0 && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Enroll into program <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <select className="input bg-white max-w-sm" value={selectedProgramId}
+            onChange={e => setSelectedProgramId(e.target.value)}>
+            <option value="">Don't enroll — just create profiles</option>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {!results && (
         <>
@@ -419,6 +588,11 @@ function CSVImport({ institutionId, onDone, onCancel }) {
 
       {results && (
         <div className="space-y-3">
+          {results.programName && (
+            <p className="text-sm text-gray-500">
+              Enrolled into <strong>{results.programName}</strong>
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-green-50 rounded-xl p-4 text-center">
               <p className="text-2xl font-bold text-green-600">{results.imported}</p>
@@ -426,13 +600,18 @@ function CSVImport({ institutionId, onDone, onCancel }) {
             </div>
             <div className="bg-amber-50 rounded-xl p-4 text-center">
               <p className="text-2xl font-bold text-amber-600">{results.skipped}</p>
-              <p className="text-xs text-amber-600 mt-1">Skipped</p>
+              <p className="text-xs text-amber-600 mt-1">Already existed</p>
             </div>
             <div className="bg-red-50 rounded-xl p-4 text-center">
               <p className="text-2xl font-bold text-red-600">{results.errors.length}</p>
               <p className="text-xs text-red-600 mt-1">Errors</p>
             </div>
           </div>
+          {results.programName && results.enrolled > 0 && (
+            <div className="bg-brand-50 rounded-xl p-3 text-sm text-brand-700">
+              ✓ {results.enrolled} student{results.enrolled !== 1 ? 's' : ''} enrolled into {results.programName}
+            </div>
+          )}
           {results.errors.length > 0 && (
             <div className="bg-red-50 rounded-xl p-3 text-xs text-red-600 space-y-1">
               {results.errors.map((e, i) => <p key={i}>{e}</p>)}

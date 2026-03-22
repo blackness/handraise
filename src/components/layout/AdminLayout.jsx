@@ -2,10 +2,11 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
 const nav = [
-  { to: '/admin',           label: 'Dashboard',  icon: '⬛' },
-  { to: '/admin/students',  label: 'Students',   icon: '👤' },
-  { to: '/admin/programs',  label: 'Programs',   icon: '📚' },
-  { to: '/admin/profile',   label: 'My Profile', icon: '⚙️' },
+  { to: '/admin',          label: 'Dashboard',  icon: '⬛' },
+  { to: '/admin/students', label: 'Students',   icon: '👤' },
+  { to: '/admin/programs', label: 'Programs',   icon: '📚' },
+  { to: '/admin/monitor',  label: 'Monitor',    icon: '🖥️' },
+  { to: '/admin/profile',  label: 'My Profile', icon: '⚙️' },
 ]
 
 export function AdminLayout({ children }) {

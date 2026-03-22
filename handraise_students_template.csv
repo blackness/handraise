@@ -1,0 +1,101 @@
+student_id,full_name,pin,team,location,company,work_position
+STU001,Pierre Sharma,8364,Team Alpha,Vancouver,Shopify,Coordinator
+STU002,Jennifer Park,7328,Team Bravo,Vancouver,Manulife,Associate
+STU003,Natalie Young,7963,Team Charlie,Vancouver,Scotiabank,Marketing Manager
+STU004,Natalie Stewart,4036,Team Delta,Vancouver,WestJet,Director
+STU005,Amir Wilson,9294,Team Echo,Vancouver,CP Rail,Product Manager
+STU006,Sofia Hamilton,4585,Team Foxtrot,Vancouver,Brookfield Asset Management,Marketing Manager
+STU007,Ryan Singh,4713,Team Alpha,Vancouver,Shopify,Project Manager
+STU008,Zara Campbell,4658,Team Bravo,Vancouver,Agnico Eagle,Finance Manager
+STU009,Amber Walker,5238,Team Charlie,Vancouver,CIBC,Consultant
+STU010,Jordan Ward,9743,Team Delta,Vancouver,Air Canada,Director
+STU011,Tiffany Taylor,8876,Team Echo,Vancouver,Power Corp,Product Manager
+STU012,Amelia Kowalski,1100,Team Foxtrot,Vancouver,Air Canada,Team Lead
+STU013,Natalie Khan,9101,Team Alpha,Vancouver,Alimentation Couche-Tard,Manager
+STU014,Samantha Brown,6057,Team Bravo,Vancouver,Air Canada,Analyst
+STU015,Diego Watson,7827,Team Charlie,Vancouver,Barrick Gold,Operations Manager
+STU016,Megan Johnson,4642,Team Delta,Vancouver,Scotiabank,Finance Manager
+STU017,Connor Ali,8011,Team Echo,Vancouver,WestJet,Team Lead
+STU018,Derek Cook,5322,Team Alpha,Calgary,Alimentation Couche-Tard,Senior Analyst
+STU019,Justin Williams,4345,Team Bravo,Calgary,Shopify,Director
+STU020,Jackson Kumar,7108,Team Charlie,Calgary,CN Rail,Product Manager
+STU021,Chloe Collins,6949,Team Delta,Calgary,CP Rail,Product Manager
+STU022,Noah Chen,8268,Team Echo,Calgary,Manulife,Specialist
+STU023,Layla Graham,6179,Team Foxtrot,Calgary,George Weston,Project Manager
+STU024,Pierre Kowalski,9669,Team Alpha,Calgary,TC Energy,Specialist
+STU025,David Graham,8381,Team Bravo,Calgary,CIBC,Team Lead
+STU026,Derek Lee,9942,Team Charlie,Calgary,Enbridge,Operations Manager
+STU027,Eric Jackson,6701,Team Delta,Calgary,Power Corp,Senior Manager
+STU028,Stephanie Miller,4881,Team Echo,Calgary,CIBC,Engineer
+STU029,Matthew Zhang,8839,Team Foxtrot,Calgary,TD Bank,Coordinator
+STU030,Zara Ali,4216,Team Alpha,Calgary,Telus,Finance Manager
+STU031,Stephanie Sanders,3948,Team Bravo,Calgary,Brookfield Asset Management,Team Lead
+STU032,Chloe Price,8437,Team Charlie,Calgary,Alimentation Couche-Tard,Marketing Manager
+STU033,Jackson Le,5972,Team Delta,Calgary,Air Canada,Coordinator
+STU034,Diego Kowalski,2186,Team Echo,Calgary,Bell,Senior Analyst
+STU035,Zara Hamilton,2967,Team Alpha,Toronto,Enbridge,Project Manager
+STU036,Danielle Khan,1353,Team Bravo,Toronto,CIBC,Sales Manager
+STU037,Joshua Thomas,1660,Team Charlie,Toronto,Agnico Eagle,Team Lead
+STU038,Joshua Wilson,6639,Team Delta,Toronto,Brookfield Asset Management,Senior Consultant
+STU039,Isabella Kelly,5203,Team Echo,Toronto,Telus,Product Manager
+STU040,Layla Roberts,7605,Team Foxtrot,Toronto,Enbridge,Engineer
+STU041,Ryan Dubois,4969,Team Alpha,Toronto,Bell,Senior Analyst
+STU042,Samantha Kumar,8352,Team Bravo,Toronto,Sun Life,Business Analyst
+STU043,Evan Li,3465,Team Charlie,Toronto,Bell,Business Analyst
+STU044,Jin Harris,8590,Team Delta,Toronto,Scotiabank,Director
+STU045,Brett Collins,4817,Team Echo,Toronto,TC Energy,Consultant
+STU046,Brett Smith,7461,Team Foxtrot,Toronto,Constellation Software,Associate
+STU047,Derek Garcia,9017,Team Alpha,Toronto,Shopify,Account Manager
+STU048,Ian Patel,8546,Team Bravo,Toronto,Empire Company,Senior Analyst
+STU049,Tiffany Davis,4016,Team Charlie,Toronto,Constellation Software,Associate
+STU050,Angela Morris,2407,Team Delta,Toronto,Brookfield Asset Management,Business Analyst
+STU051,Mason MacDonald,2240,Team Echo,Toronto,CP Rail,Account Manager
+STU052,Tiffany Pham,1024,Team Alpha,Ottawa,RBC,Senior Consultant
+STU053,Carlos Campbell,2895,Team Bravo,Ottawa,TC Energy,Analyst
+STU054,Sarah Stewart,5914,Team Charlie,Ottawa,Enbridge,Specialist
+STU055,Stephanie Kim,6740,Team Delta,Ottawa,Scotiabank,VP Operations
+STU056,Jordan Anderson,8087,Team Echo,Ottawa,Telus,Sales Manager
+STU057,Christina Kelly,7931,Team Foxtrot,Ottawa,Shopify,Project Manager
+STU058,Jordan Ramirez,8955,Team Alpha,Ottawa,Brookfield Asset Management,Analyst
+STU059,Lauren Ward,9868,Team Bravo,Ottawa,Constellation Software,Senior Analyst
+STU060,Christopher Wilson,9545,Team Charlie,Ottawa,RBC,Specialist
+STU061,Shannon Taylor,9617,Team Delta,Ottawa,Loblaw,Marketing Manager
+STU062,Samantha James,5155,Team Echo,Ottawa,RBC,Engineer
+STU063,Ethan Zhang,8379,Team Foxtrot,Ottawa,WestJet,Manager
+STU064,Nicole Johnson,8435,Team Alpha,Ottawa,CP Rail,Engineer
+STU065,Andrew Murphy,8604,Team Bravo,Ottawa,CP Rail,Consultant
+STU066,Rachel Sharma,2860,Team Charlie,Ottawa,Bombardier,Coordinator
+STU067,Ahmed Cook,1259,Team Delta,Ottawa,BMO,Associate
+STU068,Melissa Li,4993,Team Echo,Ottawa,Bell,Team Lead
+STU069,Brittany Roberts,7851,Team Alpha,Markham,Canadian Natural Resources,Coordinator
+STU070,Christopher Campbell,9660,Team Bravo,Markham,CIBC,Business Analyst
+STU071,Jackson Chen,7797,Team Charlie,Markham,Canadian Natural Resources,Product Manager
+STU072,Amelia Richardson,2354,Team Delta,Markham,Telus,Senior Analyst
+STU073,Mei Stewart,2631,Team Echo,Markham,TC Energy,Consultant
+STU074,Eric Kim,1976,Team Foxtrot,Markham,TD Bank,Associate
+STU075,Jackson Sanders,2493,Team Alpha,Markham,Power Corp,Business Analyst
+STU076,Natalie Hamilton,9439,Team Bravo,Markham,CIBC,Consultant
+STU077,Harper Mitchell,6320,Team Charlie,Markham,Telus,Consultant
+STU078,Jean Miller,5543,Team Delta,Markham,Bell,Business Analyst
+STU079,Evan Ali,1150,Team Echo,Markham,George Weston,Senior Engineer
+STU080,Nathan Ali,6465,Team Foxtrot,Markham,Telus,Manager
+STU081,Samantha Kelly,3399,Team Alpha,Markham,Enbridge,Specialist
+STU082,Emily Rogers,8657,Team Bravo,Markham,Suncor,Product Manager
+STU083,Lauren Choi,2729,Team Charlie,Markham,Suncor,Product Manager
+STU084,Lucas Lee,1276,Team Delta,Markham,Constellation Software,Operations Manager
+STU085,Christopher Davis,2701,Team Alpha,Mississauga,Bell,Associate
+STU086,Maria Mitchell,1744,Team Bravo,Mississauga,CN Rail,Engineer
+STU087,Maria Martin,3235,Team Charlie,Mississauga,Scotiabank,Account Manager
+STU088,Samantha Jackson,6156,Team Delta,Mississauga,WestJet,Account Manager
+STU089,Andrew Patel,3314,Team Echo,Mississauga,George Weston,Analyst
+STU090,Ava Cook,6749,Team Foxtrot,Mississauga,Air Canada,HR Manager
+STU091,Melissa Richardson,5816,Team Alpha,Mississauga,Manulife,Account Manager
+STU092,Connor Reed,3778,Team Bravo,Mississauga,Shaw,HR Manager
+STU093,Omar Sharma,5337,Team Charlie,Mississauga,Bell,Finance Manager
+STU094,Derek Brooks,3372,Team Delta,Mississauga,CP Rail,Manager
+STU095,Christopher Le,5675,Team Echo,Mississauga,Enbridge,Business Analyst
+STU096,Brandon Murray,5646,Team Foxtrot,Mississauga,Rogers,Account Manager
+STU097,Amir Johnson,5859,Team Alpha,Mississauga,CP Rail,Analyst
+STU098,Marie Singh,9034,Team Bravo,Mississauga,George Weston,Engineer
+STU099,Amber Miller,6175,Team Charlie,Mississauga,Loblaw,Specialist
+STU100,Omar Pham,8745,Team Delta,Mississauga,Sun Life,Senior Manager

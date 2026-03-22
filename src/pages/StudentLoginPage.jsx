@@ -21,15 +21,23 @@ export function StudentLoginPage() {
 
   useEffect(() => {
     supabase.from('institutions').select('id, name').eq('status', 'active').order('name')
-      .then(({ data }) => {
-        if (data) setInstitutions(data)
-        if (data?.length === 1) setInstitutionId(data[0].id)
+      .then(async ({ data }) => {
+        if (!data?.length) return
+        setInstitutions(data)
+        const instId = data.length === 1 ? data[0].id : null
+        if (instId) {
+          setInstitutionId(instId)
+          setLocationsLoading(true)
+          const { data: locs } = await supabase.from('locations').select('id, name').eq('institution_id', instId).order('name')
+          setLocations(locs || [])
+          setLocationsLoading(false)
+        }
       })
   }, [])
 
-  // Load locations when institution is known
+  // Load locations when institution is manually selected from dropdown
   useEffect(() => {
-    if (!institutionId) return
+    if (!institutionId || institutions.length <= 1) return
     setLocationsLoading(true)
     supabase.from('locations').select('id, name').eq('institution_id', institutionId).order('name')
       .then(({ data }) => { setLocations(data || []); setLocationsLoading(false) })
