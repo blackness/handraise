@@ -22,7 +22,7 @@ export function LoginPage() {
       setError('Invalid email or password.')
       setLoading(false)
     } else {
-      navigate('/')
+      window.location.href = '/'
     }
   }
 

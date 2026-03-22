@@ -63,7 +63,7 @@ export function StudentLoginPage() {
       setStep('location')
       setLoading(false)
     } else {
-      navigate('/session')
+      window.location.href = '/session'
     }
   }
 
@@ -78,7 +78,7 @@ export function StudentLoginPage() {
         .eq('id', pendingStudent.profile.id)
     }
 
-    navigate('/session')
+    window.location.href = '/session'
   }
 
   if (step === 'location') return (
