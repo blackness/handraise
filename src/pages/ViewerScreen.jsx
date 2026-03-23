@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { StudentProfileCard, getStudentPhotoPath } from '../components/ui/StudentProfileCard'
 
 export function ViewerScreen() {
   const { sessionId } = useParams()
@@ -146,6 +147,7 @@ export function ViewerScreen() {
             responded={respondedIds.has(selectedStudent.id)}
             pollResponse={pollResponses.find(r => r.student_id === selectedStudent.id)?.response}
             activePoll={activePoll}
+            programName={session?.programs?.name}
           />
         ) : focus?.view === 'roster' && focus?.team_name ? (
           /* Roster view — team's students */
@@ -264,63 +266,27 @@ function RosterView({ teamName, students, checkedInIds, handsUpIds, respondedIds
 }
 
 // ── Student profile view ──────────────────────────────────
-function StudentProfileView({ student, checkedIn, handRaised, responded, pollResponse, activePoll }) {
+function StudentProfileView({ student, checkedIn, handRaised, responded, pollResponse, activePoll, programName }) {
+  const pollValue = activePoll && !activePoll.closed_at
+    ? (responded ? pollResponse || '✓' : 'Waiting…')
+    : (pollResponse || '—')
+
   return (
-    <div className="flex-1 flex items-center justify-center p-12">
-      <div className="w-full max-w-2xl">
-        <div className="bg-gray-900 rounded-3xl p-10 border border-gray-800">
-
-          {/* Avatar + name */}
-          <div className="flex items-center gap-8 mb-8">
-            <StudentAvatar student={student} size="24" />
-            <div>
-              <h2 className="text-4xl font-bold text-white">{student.full_name}</h2>
-              {student.work_position && <p className="text-gray-400 text-lg mt-1">{student.work_position}</p>}
-              {student.company      && <p className="text-gray-500 text-base">{student.company}</p>}
-              {student.team         && <p className="text-brand-400 text-sm font-medium mt-2">{student.team}</p>}
-            </div>
-          </div>
-
-          {/* Live status */}
-          <div className="grid grid-cols-3 gap-4">
-            <StatusTile
-              label="Checked In"
-              value={checkedIn ? 'Yes' : 'No'}
-              active={checkedIn}
-              color="green"
-            />
-            <StatusTile
-              label="Hand Raised"
-              value={handRaised ? 'Raised' : 'Down'}
-              active={handRaised}
-              color="brand"
-            />
-            <StatusTile
-              label="Poll Response"
-              value={activePoll && !activePoll.closed_at
-                ? (responded ? pollResponse || '✓' : 'Waiting…')
-                : (pollResponse || '—')}
-              active={responded}
-              color="purple"
-            />
-          </div>
-        </div>
+    <div className="flex-1 flex items-start justify-center p-10 overflow-y-auto bg-gray-950">
+      <div className="w-full max-w-lg">
+        <StudentProfileCard
+          student={student}
+          programName={programName}
+          year={new Date().getFullYear()}
+          status={{
+            checkedIn,
+            handRaised,
+            responded,
+            pollResponse: pollValue,
+          }}
+          dark
+        />
       </div>
-    </div>
-  )
-}
-
-function StatusTile({ label, value, active, color }) {
-  const colors = {
-    green:  { bg: 'bg-green-900/30',  border: 'border-green-700',  text: 'text-green-400' },
-    brand:  { bg: 'bg-brand-900/30',  border: 'border-brand-700',  text: 'text-brand-400' },
-    purple: { bg: 'bg-purple-900/30', border: 'border-purple-700', text: 'text-purple-400' },
-  }
-  const c = colors[color]
-  return (
-    <div className={`rounded-2xl p-5 border ${active ? `${c.bg} ${c.border}` : 'bg-gray-800/50 border-gray-700'}`}>
-      <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">{label}</p>
-      <p className={`text-2xl font-bold ${active ? c.text : 'text-gray-600'}`}>{value}</p>
     </div>
   )
 }

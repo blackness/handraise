@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { StudentProfileCard } from '../../components/ui/StudentProfileCard'
 
 // Standalone page — no login required, no admin chrome
 export function ProfileMonitor() {
@@ -171,7 +172,7 @@ export function ProfileMonitor() {
               </div>
             </div>
           ) : (
-            <ProfileDetail student={selectedStudent} />
+            <ProfileDetail student={selectedStudent} programName={selectedProgram?.name} />
           )}
         </div>
       </div>
@@ -204,45 +205,29 @@ export function AdminMonitor() {
   )
 }
 
-function ProfileDetail({ student }) {
-  const fields = [
-    { label: 'Student ID', value: student.student_id },
-    { label: 'Team',       value: student.team },
-    { label: 'Location',   value: student.location },
-    { label: 'Company',    value: student.company },
-    { label: 'Position',   value: student.work_position },
-  ].filter(f => f.value)
-
+function ProfileDetail({ student, programName }) {
   return (
-    <div className="p-8 max-w-xl">
-      <div className="flex items-start gap-6 mb-8">
-        <StudentAvatar student={student} size={80} />
-        <div className="pt-1">
-          <h2 className="text-2xl font-bold text-gray-900">{student.full_name}</h2>
-          {student.work_position && <p className="text-gray-500 mt-1">{student.work_position}</p>}
-          {student.company      && <p className="text-gray-400 text-sm mt-0.5">{student.company}</p>}
-          <div className="flex gap-2 mt-2 flex-wrap">
-            {student.team     && <span className="bg-brand-50 text-brand-600 text-xs font-medium px-3 py-1 rounded-full">{student.team}</span>}
-            {student.location && <span className="bg-gray-100 text-gray-600 text-xs font-medium px-3 py-1 rounded-full">📍 {student.location}</span>}
-          </div>
-        </div>
-      </div>
-
-      {fields.length > 0 && (
-        <div className="space-y-2">
-          {fields.map(f => (
-            <div key={f.label} className="flex items-center bg-white rounded-xl px-5 py-3 border border-gray-100">
-              <span className="text-sm text-gray-400 w-28 flex-shrink-0">{f.label}</span>
-              <span className="text-sm font-medium text-gray-900">{f.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="p-8">
+      <StudentProfileCard
+        student={student}
+        programName={programName}
+        year={new Date().getFullYear()}
+      />
     </div>
   )
 }
 
 function StudentAvatar({ student, size = 32 }) {
+  const initials = student?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+  return (
+    <div className="rounded-full bg-brand-500 flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden"
+      style={{ width: size, height: size, minWidth: size }}>
+      {student?.profile_photo_url
+        ? <img src={student.profile_photo_url} alt="" className="w-full h-full object-cover" />
+        : <span style={{ fontSize: Math.max(10, size * 0.32) }}>{initials}</span>}
+    </div>
+  )
+}) {
   const initials = student?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
   return (
     <div className="rounded-full bg-brand-500 flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden"

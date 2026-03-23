@@ -59,7 +59,7 @@ export function AdminSession() {
   async function loadSession() {
     const { data } = await supabase
       .from('sessions')
-      .select('id, status, started_at, programs(id, name, enrollments(student_profiles(id, full_name, student_id, company, work_position, profile_photo_url)))')
+      .select('id, status, started_at, institution_id, programs(id, name, enrollments(student_profiles(id, full_name, student_id, company, work_position, profile_photo_url)))')
       .eq('id', sessionId)
       .single()
 
@@ -211,6 +211,7 @@ export function AdminSession() {
 
   const presenterUrl = `${window.location.origin}/presenter/${sessionId}`
   const viewerUrl    = `${window.location.origin}/viewer/${sessionId}`
+  const monitorUrl   = session?.institution_id ? `${window.location.origin}/monitor?institution=${session.institution_id}` : null
 
   return (
     <AdminLayout>
@@ -274,6 +275,7 @@ export function AdminSession() {
                 onCallOn={callOn}
                 onLower={lowerHand}
                 onLowerAll={lowerAllHands}
+                monitorUrl={monitorUrl}
               />
             )}
 
@@ -317,7 +319,7 @@ export function AdminSession() {
 
 
 // ── Hand Queue ────────────────────────────────────────────
-function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll }) {
+function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, monitorUrl }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -345,6 +347,7 @@ function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll }) {
               position={i + 1}
               onCallOn={() => onCallOn(hand)}
               onLower={() => onLower(hand)}
+              monitorUrl={monitorUrl}
             />
           ))}
         </div>
@@ -373,7 +376,7 @@ function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll }) {
   )
 }
 
-function HandCard({ hand, position, onCallOn, onLower }) {
+function HandCard({ hand, position, onCallOn, onLower, monitorUrl }) {
   const s = hand.student_profiles
   return (
     <div className="card flex items-center gap-3 py-3">
@@ -382,7 +385,14 @@ function HandCard({ hand, position, onCallOn, onLower }) {
       </span>
       <Avatar student={s} size={8} />
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 text-sm truncate">{s?.full_name}</p>
+        {monitorUrl ? (
+          <a href={monitorUrl} target="_blank" rel="noreferrer"
+            className="font-semibold text-brand-600 hover:underline text-sm truncate block">
+            {s?.full_name}
+          </a>
+        ) : (
+          <p className="font-semibold text-gray-900 text-sm truncate">{s?.full_name}</p>
+        )}
         <p className="text-xs text-gray-400 truncate">
           {[s?.work_position, s?.company].filter(Boolean).join(' · ') || s?.student_id}
         </p>
