@@ -21,9 +21,8 @@ export function LoginPage() {
     if (error) {
       setError('Invalid email or password.')
       setLoading(false)
-    } else {
-      window.location.href = '/'
     }
+    // Redirect handled by AuthContext once role is loaded
   }
 
   async function handleReset(e) {

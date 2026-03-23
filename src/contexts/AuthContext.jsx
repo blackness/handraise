@@ -62,6 +62,11 @@ export function AuthProvider({ children }) {
     setRole(data.role)
     setStudent(null)
     setLoading(false)
+
+    // If we're still on the login page after auth completes, redirect
+    if (window.location.pathname === '/login') {
+      window.location.href = '/'
+    }
   }
 
   // ── Student PIN auth ──────────────────────────────────────
