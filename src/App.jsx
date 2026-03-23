@@ -17,7 +17,7 @@ import { AdminStudents } from './pages/admin/Students'
 import { AdminPrograms } from './pages/admin/Programs'
 import { AdminSession } from './pages/admin/Session'
 import { AdminProfile } from './pages/admin/Profile'
-import { AdminMonitor, ProfileMonitor } from './pages/admin/Monitor'
+import { AdminMonitor, ProfileMonitor, LiveMonitor } from './pages/admin/Monitor'
 
 // Teacher
 import { TeacherDashboard } from './pages/teacher/Dashboard'
@@ -55,6 +55,7 @@ export default function App() {
         <Route path="/presenter/:sessionId" element={<PresenterScreen />} />
         <Route path="/viewer/:sessionId"    element={<ViewerScreen />} />
         <Route path="/monitor"              element={<ProfileMonitor />} />
+        <Route path="/monitor/live"         element={<LiveMonitor />} />
 
         {/* ── Role redirect from root ──────────────────────── */}
         <Route path="/" element={<RoleRedirect />} />

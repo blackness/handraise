@@ -209,9 +209,10 @@ export function AdminSession() {
     </AdminLayout>
   )
 
-  const presenterUrl = `${window.location.origin}/presenter/${sessionId}`
-  const viewerUrl    = `${window.location.origin}/viewer/${sessionId}`
-  const monitorUrl   = session?.institution_id ? `${window.location.origin}/monitor?institution=${session.institution_id}` : null
+  const presenterUrl   = `${window.location.origin}/presenter/${sessionId}`
+  const viewerUrl      = `${window.location.origin}/viewer/${sessionId}`
+  const teacherUrl     = `${window.location.origin}/monitor/live?session=${sessionId}`
+  const monitorUrl     = session?.institution_id ? `${window.location.origin}/monitor?institution=${session.institution_id}&session=${sessionId}` : null
 
   return (
     <AdminLayout>
@@ -236,6 +237,9 @@ export function AdminSession() {
             </a>
             <a href={viewerUrl} target="_blank" rel="noreferrer" className="btn-secondary text-sm py-2">
               👥 Viewer ↗
+            </a>
+            <a href={teacherUrl} target="_blank" rel="noreferrer" className="btn-secondary text-sm py-2">
+              🎓 Teacher Screen ↗
             </a>
             <button
               onClick={endSession}
@@ -275,7 +279,7 @@ export function AdminSession() {
                 onCallOn={callOn}
                 onLower={lowerHand}
                 onLowerAll={lowerAllHands}
-                monitorUrl={monitorUrl}
+                sessionId={sessionId}
               />
             )}
 
@@ -319,7 +323,7 @@ export function AdminSession() {
 
 
 // ── Hand Queue ────────────────────────────────────────────
-function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, monitorUrl }) {
+function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, sessionId }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -347,7 +351,7 @@ function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, monitorUrl 
               position={i + 1}
               onCallOn={() => onCallOn(hand)}
               onLower={() => onLower(hand)}
-              monitorUrl={monitorUrl}
+              sessionId={sessionId}
             />
           ))}
         </div>
@@ -376,8 +380,29 @@ function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, monitorUrl 
   )
 }
 
-function HandCard({ hand, position, onCallOn, onLower, monitorUrl }) {
+function HandCard({ hand, position, onCallOn, onLower, sessionId }) {
   const s = hand.student_profiles
+  const [pushing, setPushing] = useState(false)
+  const [pushed, setPushed]   = useState(false)
+
+  async function pushToTeacher() {
+    if (!sessionId || !s?.id) return
+    setPushing(true)
+    const { data: existing } = await supabase
+      .from('session_focus').select('id').eq('session_id', sessionId).maybeSingle()
+    if (existing) {
+      await supabase.from('session_focus')
+        .update({ view: 'profile', student_id: s.id, updated_at: new Date().toISOString() })
+        .eq('session_id', sessionId)
+    } else {
+      await supabase.from('session_focus')
+        .insert({ session_id: sessionId, view: 'profile', student_id: s.id })
+    }
+    setPushing(false)
+    setPushed(true)
+    setTimeout(() => setPushed(false), 2000)
+  }
+
   return (
     <div className="card flex items-center gap-3 py-3">
       <span className="text-xs font-bold text-gray-300 w-4 text-center flex-shrink-0">
@@ -385,14 +410,15 @@ function HandCard({ hand, position, onCallOn, onLower, monitorUrl }) {
       </span>
       <Avatar student={s} size={8} />
       <div className="flex-1 min-w-0">
-        {monitorUrl ? (
-          <a href={monitorUrl} target="_blank" rel="noreferrer"
-            className="font-semibold text-brand-600 hover:underline text-sm truncate block">
-            {s?.full_name}
-          </a>
-        ) : (
-          <p className="font-semibold text-gray-900 text-sm truncate">{s?.full_name}</p>
-        )}
+        <button
+          onClick={pushToTeacher}
+          disabled={pushing}
+          title="Click to show on teacher screen"
+          className={`font-semibold text-sm truncate block text-left transition-colors ${
+            pushed ? 'text-green-600' : 'text-brand-600 hover:underline'
+          }`}>
+          {pushed ? '✓ Pushed' : s?.full_name}
+        </button>
         <p className="text-xs text-gray-400 truncate">
           {[s?.work_position, s?.company].filter(Boolean).join(' · ') || s?.student_id}
         </p>

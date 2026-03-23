@@ -6,9 +6,12 @@ import { StudentProfileCard } from '../../components/ui/StudentProfileCard'
 // Standalone page — no login required, no admin chrome
 export function ProfileMonitor() {
   const [searchParams] = useSearchParams()
-  const institutionId = searchParams.get('institution')
+  const institutionId   = searchParams.get('institution')
+  const targetStudentId = searchParams.get('student')
+  const sessionId       = searchParams.get('session')
 
   const [programs, setPrograms]               = useState([])
+  const [allStudentsFlat, setAllStudentsFlat] = useState([]) // all students across all programs
   const [selectedProgram, setSelectedProgram] = useState(null)
   const [selectedTeam, setSelectedTeam]       = useState(null)
   const [selectedStudent, setSelectedStudent] = useState(null)
@@ -18,8 +21,42 @@ export function ProfileMonitor() {
 
   useEffect(() => { loadPrograms() }, [])
 
+  // Realtime: watch session_focus if a session is provided
+  useEffect(() => {
+    if (!sessionId) return
+    const channel = supabase.channel(`profile-monitor-${sessionId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'session_focus',
+        filter: `session_id=eq.${sessionId}`
+      }, (payload) => {
+        const studentId = payload.new?.student_id
+        if (!studentId) return
+        // Find student across all programs
+        setAllStudentsFlat(prev => {
+          const found = prev.find(s => s.id === studentId)
+          if (found) setSelectedStudent(found)
+          return prev
+        })
+        // Also find and select their program
+        setPrograms(prev => {
+          for (const program of prev) {
+            const enrolled = program.enrollments?.map(e => e.student_profiles).filter(s => s?.active) || []
+            const target = enrolled.find(s => s.id === studentId)
+            if (target) {
+              setSelectedProgram(program)
+              setStudents(enrolled)
+              setSelectedStudent(target)
+              break
+            }
+          }
+          return prev
+        })
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [sessionId])
+
   async function loadPrograms() {
-    // Load all institutions if no param, or specific one
     let query = supabase.from('programs')
       .select('id, name, institution_id, institutions(name), enrollments(student_profiles(id, full_name, student_id, company, work_position, team, location, profile_photo_url, active))')
       .eq('archived', false)
@@ -30,6 +67,45 @@ export function ProfileMonitor() {
     const { data } = await query
     setPrograms(data || [])
     if (data?.[0]?.institutions?.name) setInstitutionName(data[0].institutions.name)
+
+    // Flatten all students for realtime lookup
+    const flat = (data || []).flatMap(p =>
+      p.enrollments?.map(e => e.student_profiles).filter(s => s?.active) || []
+    )
+    setAllStudentsFlat(flat)
+
+    // Deep-link: if a student ID is in the URL, find and show them immediately
+    if (targetStudentId && data) {
+      for (const program of data) {
+        const allStudents = program.enrollments?.map(e => e.student_profiles).filter(s => s?.active) || []
+        const target = allStudents.find(s => s.id === targetStudentId)
+        if (target) {
+          setSelectedProgram(program)
+          setStudents(allStudents)
+          setSelectedStudent(target)
+          break
+        }
+      }
+    }
+
+    // If session provided, check current focus
+    if (sessionId) {
+      const { data: focus } = await supabase
+        .from('session_focus').select('student_id').eq('session_id', sessionId).maybeSingle()
+      if (focus?.student_id && data) {
+        for (const program of data) {
+          const enrolled = program.enrollments?.map(e => e.student_profiles).filter(s => s?.active) || []
+          const target = enrolled.find(s => s.id === focus.student_id)
+          if (target) {
+            setSelectedProgram(program)
+            setStudents(enrolled)
+            setSelectedStudent(target)
+            break
+          }
+        }
+      }
+    }
+
     setLoading(false)
   }
 
@@ -217,6 +293,7 @@ function ProfileDetail({ student, programName }) {
   )
 }
 
+
 function StudentAvatar({ student, size = 32 }) {
   const initials = student?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
   return (
@@ -227,14 +304,102 @@ function StudentAvatar({ student, size = 32 }) {
         : <span style={{ fontSize: Math.max(10, size * 0.32) }}>{initials}</span>}
     </div>
   )
-}) {
-  const initials = student?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
+
+
+// ── Live Monitor — teacher screen, subscribes to session_focus ──
+export function LiveMonitor() {
+  const [searchParams] = useSearchParams()
+  const sessionId = searchParams.get('session')
+
+  const [student, setStudent]         = useState(null)
+  const [programName, setProgramName] = useState('')
+  const [allStudents, setAllStudents] = useState([])
+  const [loading, setLoading]         = useState(true)
+
+  useEffect(() => {
+    if (!sessionId) { setLoading(false); return }
+    loadSession()
+  }, [sessionId])
+
+  useEffect(() => {
+    if (!sessionId) return
+    const channel = supabase.channel(`live-monitor-${sessionId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'session_focus',
+        filter: `session_id=eq.${sessionId}`
+      }, (payload) => {
+        const studentId = payload.new?.student_id
+        if (studentId) {
+          const found = allStudents.find(s => s.id === studentId)
+          if (found) setStudent(found)
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [sessionId, allStudents])
+
+  async function loadSession() {
+    const { data: sess } = await supabase
+      .from('sessions')
+      .select('id, programs(name, enrollments(student_profiles(id, full_name, student_id, company, work_position, team, location, profile_photo_url, active)))')
+      .eq('id', sessionId).single()
+
+    if (!sess) { setLoading(false); return }
+    setProgramName(sess.programs?.name || '')
+    const enrolled = sess.programs?.enrollments?.map(e => e.student_profiles).filter(s => s?.active) || []
+    setAllStudents(enrolled)
+
+    // Check if there's already a focused student
+    const { data: focus } = await supabase
+      .from('session_focus').select('student_id').eq('session_id', sessionId).maybeSingle()
+    if (focus?.student_id) {
+      const found = enrolled.find(s => s.id === focus.student_id)
+      if (found) setStudent(found)
+    }
+
+    setLoading(false)
+  }
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
+    </div>
+  )
+
+  if (!sessionId) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <p className="text-gray-400">No session specified.</p>
+    </div>
+  )
+
   return (
-    <div className="rounded-full bg-brand-500 flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden"
-      style={{ width: size, height: size, minWidth: size }}>
-      {student?.profile_photo_url
-        ? <img src={student.profile_photo_url} alt="" className="w-full h-full object-cover" />
-        : <span style={{ fontSize: Math.max(10, size * 0.32) }}>{initials}</span>}
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Minimal header */}
+      <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center gap-3">
+        <span className="text-xl">✋</span>
+        <span className="font-bold text-gray-900">{programName || 'Live Monitor'}</span>
+        <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium ml-2">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          Live
+        </span>
+      </div>
+
+      {/* Profile */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        {!student ? (
+          <div className="text-center">
+            <p className="text-6xl mb-4 opacity-20">👤</p>
+            <p className="text-gray-400">Waiting for admin to select a student…</p>
+          </div>
+        ) : (
+          <StudentProfileCard
+            student={student}
+            programName={programName}
+            year={new Date().getFullYear()}
+          />
+        )}
+      </div>
     </div>
   )
 }
