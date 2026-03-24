@@ -24,6 +24,7 @@ export function AdminSession() {
 
   const [session, setSession]       = useState(null)
   const [program, setProgram]       = useState(null)
+  const [institutionId, setInstitutionId] = useState(null)
   const [enrolled, setEnrolled]     = useState([])  // all enrolled students
   const [hands, setHands]           = useState([])  // active raised hands
   const [calledOn, setCalledOn]     = useState([])  // called-on log this session
@@ -57,6 +58,11 @@ export function AdminSession() {
   }, [sessionId])
 
   async function loadSession() {
+    // Load institution_id from admin_profiles (reliable)
+    const { data: ap } = await supabase
+      .from('admin_profiles').select('institution_id').eq('user_id', user.id).single()
+    if (ap?.institution_id) setInstitutionId(ap.institution_id)
+
     const { data } = await supabase
       .from('sessions')
       .select('id, status, started_at, institution_id, programs(id, name, enrollments(student_profiles(id, full_name, student_id, company, work_position, profile_photo_url)))')
@@ -66,6 +72,7 @@ export function AdminSession() {
     if (!data) { navigate('/admin'); return }
     setSession(data)
     setProgram(data.programs)
+    if (data.institution_id) setInstitutionId(data.institution_id)
     setEnrolled(data.programs?.enrollments?.map(e => e.student_profiles).filter(Boolean) || [])
 
     await Promise.all([loadHands(), loadAttendance(), loadActivePoll()])
@@ -212,7 +219,7 @@ export function AdminSession() {
   const presenterUrl   = `${window.location.origin}/presenter/${sessionId}`
   const viewerUrl      = `${window.location.origin}/viewer/${sessionId}`
   const teacherUrl     = `${window.location.origin}/monitor/live?session=${sessionId}`
-  const monitorUrl     = session?.institution_id ? `${window.location.origin}/monitor?institution=${session.institution_id}&session=${sessionId}` : null
+  const monitorUrl     = institutionId ? `${window.location.origin}/monitor?institution=${institutionId}&session=${sessionId}` : null
 
   return (
     <AdminLayout>
@@ -225,7 +232,10 @@ export function AdminSession() {
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Live</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">{program?.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {session?.name ? `${program?.name} — ${session.name}` : program?.name}
+              <span className="text-lg font-normal text-gray-400 ml-2">Dashboard</span>
+            </h1>
             <p className="text-gray-400 text-sm mt-0.5">
               Started {formatDistanceToNow(new Date(session.started_at), { addSuffix: true })}
               {' · '}{attendance.length} checked in · {enrolled.length} enrolled
@@ -241,6 +251,11 @@ export function AdminSession() {
             <a href={teacherUrl} target="_blank" rel="noreferrer" className="btn-secondary text-sm py-2">
               🎓 Teacher Screen ↗
             </a>
+            {monitorUrl && (
+              <a href={monitorUrl} target="_blank" rel="noreferrer" className="btn-secondary text-sm py-2">
+                🖥️ Monitor ↗
+              </a>
+            )}
             <button
               onClick={endSession}
               disabled={ending}
@@ -324,17 +339,40 @@ export function AdminSession() {
 
 // ── Hand Queue ────────────────────────────────────────────
 function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, sessionId }) {
+  const [fontSize, setFontSize] = useState(1) // multiplier: 1, 1.25, 1.5, 2
+
+  const sizes = [
+    { label: 'A',  value: 1 },
+    { label: 'A',  value: 1.25 },
+    { label: 'A',  value: 1.5 },
+    { label: 'A',  value: 2 },
+  ]
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-700">
           Queue {hands.length > 0 ? `(${hands.length})` : ''}
         </p>
-        {hands.length > 1 && (
-          <button onClick={onLowerAll} className="text-xs text-red-400 hover:text-red-600">
-            Lower all
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Font size controls */}
+          <div className="flex items-center gap-1">
+            {sizes.map((s, i) => (
+              <button key={s.value} onClick={() => setFontSize(s.value)}
+                style={{ fontSize: `${0.65 + i * 0.12}rem` }}
+                className={`font-bold px-1.5 py-0.5 rounded transition-colors ${
+                  fontSize === s.value ? 'text-brand-500' : 'text-gray-300 hover:text-gray-500'
+                }`}>
+                A
+              </button>
+            ))}
+          </div>
+          {hands.length > 1 && (
+            <button onClick={onLowerAll} className="text-xs text-red-400 hover:text-red-600">
+              Lower all
+            </button>
+          )}
+        </div>
       </div>
 
       {hands.length === 0 ? (
@@ -352,6 +390,7 @@ function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, sessionId }
               onCallOn={() => onCallOn(hand)}
               onLower={() => onLower(hand)}
               sessionId={sessionId}
+              fontSize={fontSize}
             />
           ))}
         </div>
@@ -380,7 +419,7 @@ function HandQueue({ hands, calledOn, onCallOn, onLower, onLowerAll, sessionId }
   )
 }
 
-function HandCard({ hand, position, onCallOn, onLower, sessionId }) {
+function HandCard({ hand, position, onCallOn, onLower, sessionId, fontSize = 1 }) {
   const s = hand.student_profiles
   const [pushing, setPushing] = useState(false)
   const [pushed, setPushed]   = useState(false)
@@ -403,6 +442,9 @@ function HandCard({ hand, position, onCallOn, onLower, sessionId }) {
     setTimeout(() => setPushed(false), 2000)
   }
 
+  const nameSize = `${1 + (fontSize - 1) * 0.8}rem`
+  const subSize  = `${0.75 + (fontSize - 1) * 0.4}rem`
+
   return (
     <div className="card flex items-center gap-3 py-3">
       <span className="text-xs font-bold text-gray-300 w-4 text-center flex-shrink-0">
@@ -414,12 +456,13 @@ function HandCard({ hand, position, onCallOn, onLower, sessionId }) {
           onClick={pushToTeacher}
           disabled={pushing}
           title="Click to show on teacher screen"
-          className={`font-semibold text-sm truncate block text-left transition-colors ${
+          style={{ fontSize: nameSize }}
+          className={`font-semibold truncate block text-left transition-colors leading-tight ${
             pushed ? 'text-green-600' : 'text-brand-600 hover:underline'
           }`}>
           {pushed ? '✓ Pushed' : s?.full_name}
         </button>
-        <p className="text-xs text-gray-400 truncate">
+        <p style={{ fontSize: subSize }} className="text-gray-400 truncate mt-0.5">
           {[s?.work_position, s?.company].filter(Boolean).join(' · ') || s?.student_id}
         </p>
       </div>

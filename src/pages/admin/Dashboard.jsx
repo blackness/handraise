@@ -3,17 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { AdminLayout } from '../../components/layout/AdminLayout'
-import { StatCard } from '../../components/ui/StatCard'
 import { formatDistanceToNow } from 'date-fns'
 
 export function AdminDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [institution, setInstitution] = useState(null)
-  const [stats, setStats] = useState({ students: null, programs: null, sessions: null })
+  const [institution, setInstitution]     = useState(null)
+  const [stats, setStats]                 = useState({ students: null, programs: null, sessions: null })
   const [activeSessions, setActiveSessions] = useState([])
   const [recentSessions, setRecentSessions] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]             = useState(true)
 
   useEffect(() => { loadDashboard() }, [])
 
@@ -82,79 +81,79 @@ export function AdminDashboard() {
   return (
     <AdminLayout>
       <div className="p-8 max-w-6xl mx-auto">
+
+        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">{institution?.name ?? 'Dashboard'}</h1>
-          <p className="text-gray-500 mt-1">
-            {activeSessions.length > 0
-              ? `${activeSessions.length} session${activeSessions.length !== 1 ? 's' : ''} live right now`
-              : 'No active sessions'}
-          </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Active Students" value={stats.students} accent />
-          <StatCard label="Programs"        value={stats.programs} />
-          <StatCard label="Sessions Run"    value={stats.sessions} />
-          <StatCard label="Status" value={institution?.status ?? '—'} sub={`Plan: ${institution?.plan ?? '—'}`} />
-        </div>
-
-        {/* Active Sessions */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Live Sessions</h2>
-            <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              Updating live
-            </span>
-          </div>
-          {activeSessions.length === 0 ? (
-            <div className="card border-dashed text-center py-10">
-              <p className="text-3xl mb-3">🎓</p>
-              <p className="text-gray-500 font-medium">No sessions running</p>
-              <p className="text-gray-400 text-sm mt-1">Start a session from a program below</p>
+        {/* Live Sessions — prominent */}
+        {activeSessions.length > 0 && (
+          <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+              <h2 className="text-xl font-bold text-gray-900">Live Now</h2>
+              <span className="text-sm text-gray-400">{activeSessions.length} session{activeSessions.length !== 1 ? 's' : ''} running</span>
             </div>
-          ) : (
             <div className="space-y-3">
               {activeSessions.map(session => {
-                const handsUp  = session.hands?.filter(h => !h.lowered_at).length ?? 0
+                const handsUp   = session.hands?.filter(h => !h.lowered_at).length ?? 0
                 const attendees = session.attendance?.length ?? 0
-                const label = [session.programs?.name, session.name].filter(Boolean).join(' — ')
+                const label     = session.name || session.programs?.name
                 return (
-                  <div key={session.id} className="card flex items-center gap-4">
-                    <div className="flex-shrink-0 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <div key={session.id} className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 truncate">{label}</p>
-                      <p className="text-sm text-gray-400 mt-0.5">
+                      <p className="font-bold text-gray-900 text-lg truncate">{label}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">
                         Started {formatDistanceToNow(new Date(session.started_at), { addSuffix: true })}
                         {' · '}{attendees} checked in
-                        {handsUp > 0 && <span className="text-brand-500 font-medium"> · ✋ {handsUp} hand{handsUp !== 1 ? 's' : ''} up</span>}
+                        {handsUp > 0 && <span className="text-brand-600 font-medium"> · ✋ {handsUp} hand{handsUp !== 1 ? 's' : ''} up</span>}
                       </p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => navigate(`/admin/session/${session.id}`)} className="btn-primary text-sm py-2 px-4">Open Dashboard</button>
-                      <button onClick={() => endSession(session.id)} className="text-sm py-2 px-4 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">End</button>
+                      <button onClick={() => navigate(`/admin/session/${session.id}`)} className="btn-primary text-sm py-2 px-4">
+                        Open
+                      </button>
+                      <button onClick={() => endSession(session.id)} className="text-sm py-2 px-4 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                        End
+                      </button>
                     </div>
                   </div>
                 )
               })}
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Programs */}
         <ProgramsPanel institutionId={institution?.id} onStart={(programId, name) => startSession(programId, name)} />
 
-        {/* Recent */}
+        {/* Stats — smaller, below programs */}
+        <div className="grid grid-cols-4 gap-3 mt-8">
+          {[
+            { label: 'Active Students', value: stats.students },
+            { label: 'Programs',        value: stats.programs },
+            { label: 'Sessions Run',    value: stats.sessions },
+           {/*  { label: 'Plan',            value: institution?.plan ?? '—' },  */}
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-xl border border-gray-100 px-4 py-3">
+              <p className="text-xs text-gray-400">{s.label}</p>
+              <p className="text-2xl font-bold text-brand-500 mt-0.5">{s.value ?? '—'}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent Sessions */}
         {recentSessions.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Sessions</h2>
+            <h2 className="text-base font-semibold text-gray-500 mb-3">Recent Sessions</h2>
             <div className="card p-0 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="text-left px-5 py-3 text-gray-500 font-medium">Program</th>
-                    <th className="text-left px-5 py-3 text-gray-500 font-medium">Started</th>
-                    <th className="text-left px-5 py-3 text-gray-500 font-medium">Duration</th>
+                    <th className="text-left px-5 py-3 text-gray-400 font-medium">Program</th>
+                    <th className="text-left px-5 py-3 text-gray-400 font-medium">Started</th>
+                    <th className="text-left px-5 py-3 text-gray-400 font-medium">Duration</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,6 +174,7 @@ export function AdminDashboard() {
             </div>
           </section>
         )}
+
       </div>
     </AdminLayout>
   )
@@ -182,8 +182,8 @@ export function AdminDashboard() {
 
 function ProgramsPanel({ institutionId, onStart }) {
   const navigate = useNavigate()
-  const [programs, setPrograms] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [programs, setPrograms]   = useState([])
+  const [loading, setLoading]     = useState(true)
   const [startModal, setStartModal] = useState(null)
 
   useEffect(() => {
@@ -198,9 +198,9 @@ function ProgramsPanel({ institutionId, onStart }) {
     <>
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Programs</h2>
+          <h2 className="text-xl font-bold text-gray-900">Programs</h2>
           <button onClick={() => navigate('/admin/programs')} className="text-sm text-brand-500 hover:underline font-medium">
-            Manage programs →
+            Manage →
           </button>
         </div>
         {loading ? <div className="card animate-pulse h-20" /> :
@@ -214,7 +214,7 @@ function ProgramsPanel({ institutionId, onStart }) {
               {programs.map(program => (
                 <div key={program.id} className="card flex items-center gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{program.name}</p>
+                    <p className="font-bold text-gray-900 truncate text-lg">{program.name}</p>
                     <p className="text-sm text-gray-400 mt-0.5">
                       {program.enrollments?.length ?? 0} students
                       {program.teacher_profiles?.full_name && <> · {program.teacher_profiles.full_name}</>}
@@ -250,17 +250,10 @@ function StartSessionModal({ program, onStart, onCancel }) {
           Give this session a name if running multiple concurrently (e.g. "Section 1", "Morning Group").
           Leave blank for a single cohort.
         </p>
-        <input
-          className="input mb-5"
-          placeholder="Session name (optional)"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          autoFocus
-        />
+        <input className="input mb-5" placeholder="Session name (optional)"
+          value={name} onChange={e => setName(e.target.value)} autoFocus />
         <div className="flex gap-2">
-          <button onClick={() => onStart(name.trim() || null)} className="btn-primary flex-1">
-            Start Session
-          </button>
+          <button onClick={() => onStart(name.trim() || null)} className="btn-primary flex-1">Start Session</button>
           <button onClick={onCancel} className="btn-secondary">Cancel</button>
         </div>
       </div>

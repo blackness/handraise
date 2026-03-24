@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import Papa from 'papaparse'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { AdminLayout } from '../../components/layout/AdminLayout'
@@ -15,6 +16,7 @@ export function AdminPrograms() {
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(null)
   const [pageTab, setPageTab] = useState('programs')
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { loadData() }, [])
 
@@ -64,9 +66,19 @@ export function AdminPrograms() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Programs</h1>
           {pageTab === 'programs' && !showForm && (
-            <button onClick={() => setShowForm(true)} className="btn-primary">+ New Program</button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowImport(v => !v)} className="btn-secondary text-sm">
+                ↑ Import Students
+              </button>
+              <button onClick={() => setShowForm(true)} className="btn-primary">+ New Program</button>
+            </div>
           )}
         </div>
+
+        {/* CSV Import panel */}
+        {showImport && pageTab === 'programs' && (
+          <ProgramCSVImport institutionId={institutionId} onDone={() => { setShowImport(false); loadData() }} onCancel={() => setShowImport(false)} />
+        )}
 
         {/* Page tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
@@ -347,6 +359,186 @@ function StudentEnrollRow({ student, enrolled, loading, onToggle }) {
         className={`text-xs font-medium flex-shrink-0 transition-colors ${enrolled ? 'text-red-400 hover:text-red-600' : 'text-brand-500 hover:text-brand-700'} disabled:opacity-40`}>
         {loading ? '…' : enrolled ? 'Remove' : '+ Enroll'}
       </button>
+    </div>
+  )
+}
+
+
+// ── CSV Import for Programs page ──────────────────────────
+const REQUIRED_COLS = ['student_id', 'full_name', 'pin']
+
+function ProgramCSVImport({ institutionId, onDone, onCancel }) {
+  const fileRef = useRef()
+  const [rows, setRows]           = useState([])
+  const [importing, setImporting] = useState(false)
+  const [results, setResults]     = useState(null)
+  const [parseError, setParseError] = useState('')
+  const [programs, setPrograms]   = useState([])
+  const [selectedProgramId, setSelectedProgramId] = useState('')
+
+  useEffect(() => {
+    if (!institutionId) return
+    supabase.from('programs').select('id, name').eq('institution_id', institutionId)
+      .eq('archived', false).order('name')
+      .then(({ data }) => setPrograms(data || []))
+  }, [institutionId])
+
+  function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    setParseError(''); setRows([]); setResults(null)
+    Papa.parse(file, {
+      header: true, skipEmptyLines: true,
+      transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, '_'),
+      complete: ({ data, errors }) => {
+        if (errors.length) { setParseError('Could not parse CSV.'); return }
+        const missing = REQUIRED_COLS.filter(c => !Object.keys(data[0] || {}).includes(c))
+        if (missing.length) { setParseError(`Missing required columns: ${missing.join(', ')}`); return }
+        const validated = data.map((row, i) => {
+          const issues = []
+          if (!row.student_id?.trim()) issues.push('Missing student_id')
+          if (!row.full_name?.trim())  issues.push('Missing full_name')
+          if (!row.pin?.trim())        issues.push('Missing pin')
+          if (row.pin && !/^\d{4,8}$/.test(row.pin.trim())) issues.push('PIN must be 4–8 digits')
+          return {
+            _row: i + 2, _issues: issues, _status: issues.length ? 'error' : 'ready',
+            student_id: row.student_id?.trim(), full_name: row.full_name?.trim(),
+            pin: row.pin?.trim(), company: row.company?.trim() || null,
+            work_position: row.work_position?.trim() || null,
+            team: row.team?.trim() || null, location: row.location?.trim() || null,
+          }
+        })
+        setRows(validated)
+      }
+    })
+  }
+
+  async function handleImport() {
+    setImporting(true)
+    const ready = rows.filter(r => r._status === 'ready')
+    let imported = 0, skipped = 0, enrolled = 0, errors = []
+    for (const row of ready) {
+      const { data: hashed, error: hashErr } = await supabase.rpc('hash_pin', { p_pin: row.pin })
+      if (hashErr) { errors.push(`${row.student_id}: ${hashErr.message}`); continue }
+      const { data: inserted, error } = await supabase.from('student_profiles').insert({
+        institution_id: institutionId, student_id: row.student_id, full_name: row.full_name,
+        pin_hash: hashed, company: row.company, work_position: row.work_position,
+        team: row.team, location: row.location,
+      }).select('id').single()
+      if (error) {
+        if (error.code === '23505') {
+          skipped++
+          if (selectedProgramId) {
+            const { data: existing } = await supabase.from('student_profiles')
+              .select('id').eq('institution_id', institutionId).eq('student_id', row.student_id).single()
+            if (existing) {
+              const { error: enrollErr } = await supabase.from('enrollments')
+                .insert({ program_id: selectedProgramId, student_id: existing.id })
+              if (!enrollErr) enrolled++
+            }
+          }
+        } else { errors.push(`${row.student_id}: ${error.message}`) }
+      } else {
+        imported++
+        if (selectedProgramId && inserted) {
+          const { error: enrollErr } = await supabase.from('enrollments')
+            .insert({ program_id: selectedProgramId, student_id: inserted.id })
+          if (!enrollErr) enrolled++
+        }
+      }
+    }
+    setResults({ imported, skipped, enrolled, errors, programName: programs.find(p => p.id === selectedProgramId)?.name })
+    setImporting(false)
+  }
+
+  const readyCount = rows.filter(r => r._status === 'ready').length
+  const errorCount = rows.filter(r => r._status === 'error').length
+
+  return (
+    <div className="card mb-6 border-brand-200 border-2">
+      <h2 className="font-semibold text-gray-900 mb-1">Import Students via CSV</h2>
+      <p className="text-sm text-gray-500 mb-3">
+        Required: <code className="bg-gray-100 px-1 rounded">student_id</code>{' '}
+        <code className="bg-gray-100 px-1 rounded">full_name</code>{' '}
+        <code className="bg-gray-100 px-1 rounded">pin</code>
+        {' '}· Optional: <code className="bg-gray-100 px-1 rounded">team</code>{' '}
+        <code className="bg-gray-100 px-1 rounded">location</code>{' '}
+        <code className="bg-gray-100 px-1 rounded">company</code>{' '}
+        <code className="bg-gray-100 px-1 rounded">work_position</code>
+      </p>
+      <a href="data:text/csv;charset=utf-8,student_id,full_name,pin,team,location,company,work_position%0ASTU001,Jane Smith,1234,Team Alpha,Toronto,Acme Corp,Senior Manager"
+        download="handraise_students_template.csv" className="inline-block text-sm text-brand-500 hover:underline mb-4">
+        ↓ Download template CSV
+      </a>
+
+      {programs.length > 0 && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Enroll into program <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <select className="input bg-white max-w-sm" value={selectedProgramId} onChange={e => setSelectedProgramId(e.target.value)}>
+            <option value="">Don't enroll — just create profiles</option>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      )}
+
+      {!results && (
+        <>
+          <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-brand-300 transition-colors mb-4"
+            onClick={() => fileRef.current.click()}>
+            <p className="text-gray-400 text-sm">Click to select a CSV file</p>
+            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+          </div>
+          {parseError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">{parseError}</p>}
+          {rows.length > 0 && (
+            <>
+              <div className="flex items-center gap-4 mb-3">
+                <span className="text-sm font-medium">{rows.length} rows</span>
+                {readyCount > 0 && <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">{readyCount} ready</span>}
+                {errorCount > 0 && <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full">{errorCount} errors</span>}
+              </div>
+              {readyCount > 0 && (
+                <div className="flex gap-2">
+                  <button onClick={handleImport} disabled={importing} className="btn-primary">
+                    {importing ? 'Importing…' : `Import ${readyCount} student${readyCount !== 1 ? 's' : ''}`}
+                  </button>
+                  <button onClick={onCancel} className="btn-secondary">Cancel</button>
+                </div>
+              )}
+            </>
+          )}
+          {rows.length === 0 && !parseError && (
+            <button onClick={onCancel} className="btn-secondary mt-2">Cancel</button>
+          )}
+        </>
+      )}
+
+      {results && (
+        <div className="space-y-3">
+          {results.programName && <p className="text-sm text-gray-500">Enrolled into <strong>{results.programName}</strong></p>}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-green-50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-green-600">{results.imported}</p>
+              <p className="text-xs text-green-600 mt-1">Imported</p>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-amber-600">{results.skipped}</p>
+              <p className="text-xs text-amber-600 mt-1">Already existed</p>
+            </div>
+            <div className="bg-red-50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-red-600">{results.errors.length}</p>
+              <p className="text-xs text-red-600 mt-1">Errors</p>
+            </div>
+          </div>
+          {results.enrolled > 0 && (
+            <div className="bg-brand-50 rounded-xl p-3 text-sm text-brand-700">
+              ✓ {results.enrolled} student{results.enrolled !== 1 ? 's' : ''} enrolled
+            </div>
+          )}
+          <button onClick={onDone} className="btn-primary">Done</button>
+        </div>
+      )}
     </div>
   )
 }
